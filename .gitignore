@@ -1,1 +1,7 @@
 /data
+/testmimic
+**/__pycache__/
+/testcache
+/.vscode
+**/*.egg-info/
+/build
