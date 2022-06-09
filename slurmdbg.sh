@@ -10,4 +10,4 @@ export PYTHONUNBUFFERED=TRUE
 export PYTHONPATH=./:$PYTHONPATH
 
 echo "Establishing connection back to $SLURM_SUBMIT_HOST:45589"
-python -m debugpy --connect $SLURM_SUBMIT_HOST:45589 --wait-for-client tests/test_EventsAggregator.py
+SHORTTEST=true python -m debugpy --connect $SLURM_SUBMIT_HOST:45589 --wait-for-client tests/test_EventsAggregator.py

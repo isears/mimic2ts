@@ -184,9 +184,13 @@ class BaseAggregator(object):
             scheduler="processes", num_workers=self.cores_available
         )
 
+        # Make dummy dataframes for anything that doesn't have data
         for sid in self.stay_ids:
             if not os.path.exists(f"{self.dst_path}/{sid}/{self.name}_features.csv"):
-                pd.DataFrame(columns=self.data.columns).to_csv(
+                cols = ["feature_id"] + list(
+                    range(0, self.icustays["total_windows"].loc[sid] + 1)
+                )
+                pd.DataFrame(columns=cols).to_csv(
                     f"{self.dst_path}/{sid}/{self.name}_features.csv", index=False
                 )
 
