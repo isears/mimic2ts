@@ -14,6 +14,8 @@ pip install ./
 
 ```bash
 python -m mimic2ts -h
+```
+```
 usage: __main__.py [-h] --src SRC --dst DST [--timestep TIMESTEP]
 
 Convert MIMIC IV tabular data to time series matrices

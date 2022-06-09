@@ -302,7 +302,7 @@ class EventsAggregator(object):
         dst_path: str,
         stay_ids: List[int],
         feature_ids: List[int],
-        window_seconds: int = 3600,
+        timestep_seconds: int = 3600,
         chartevents: bool = True,
         inputevents: bool = True,
         outputevents: bool = True,
@@ -310,23 +310,41 @@ class EventsAggregator(object):
 
         self.mimic_path = mimic_path
         self.dst_path = dst_path
-        self.window_seconds = window_seconds
+        self.timestep_seconds = timestep_seconds
 
         self.aggregators = list()
 
         if chartevents:
             self.aggregators.append(
-                ChartEventAggregator(mimic_path, dst_path, stay_ids, feature_ids)
+                ChartEventAggregator(
+                    mimic_path,
+                    dst_path,
+                    stay_ids,
+                    feature_ids,
+                    timestep_seconds=timestep_seconds,
+                )
             )
 
         if inputevents:
             self.aggregators.append(
-                InputEventAggregator(mimic_path, dst_path, stay_ids, feature_ids)
+                InputEventAggregator(
+                    mimic_path,
+                    dst_path,
+                    stay_ids,
+                    feature_ids,
+                    timestep_seconds=timestep_seconds,
+                )
             )
 
         if outputevents:
             self.aggregators.append(
-                OutputEventAggregator(mimic_path, dst_path, stay_ids, feature_ids)
+                OutputEventAggregator(
+                    mimic_path,
+                    dst_path,
+                    stay_ids,
+                    feature_ids,
+                    timestep_seconds=timestep_seconds,
+                )
             )
 
     def do_agg(self):
