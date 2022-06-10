@@ -49,7 +49,7 @@ destination_directory/
   ...
 ```
 
-Each directory is named for a specific `stay_id` in MIMIC. Each of the csv file contains a table with the following format:
+Each directory is named for a specific `stay_id` in MIMIC. Each of the csv files contains a table with the following format:
 
 | feature_id | 0   | 1  | ... | n  |
 |------------|-----|----|-----|----|
@@ -62,3 +62,12 @@ Along the x-axis are timesteps where 0 is the first time window during the icu s
 When there are many measurements of the same feature during a given time step, they are averaged together. When there are no measurements of the feature during a given time step, the value is set to 0.0.
 
 Every table within a `stay_id` directory is guaranteed to have the same number of total timesteps (n), however, different tables from two different `stay_id` directories may not due to differing icu stay lengths.
+
+## Sample Pytorch Dataset
+
+The repository includes a sample pytorch dataset to demonstrate loading the processed timeseries data using pytorch dataloaders. Additional data processing steps can be added by extending the functionality of the sample dataset.
+
+To run the demo:
+```bash
+python tools/sampleDataset.py
+```

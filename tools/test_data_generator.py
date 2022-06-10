@@ -1,5 +1,8 @@
 """
 Generates test data that is a subset of MIMIC
+
+Usage:
+python tools/test_data_generator.py /path/to/real/MIMIC/data
 """
 import dask.dataframe as dd
 import pandas as pd
