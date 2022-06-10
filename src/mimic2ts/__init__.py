@@ -165,24 +165,30 @@ class BaseAggregator(object):
     def do_agg(self):
         # Standardize the format before doing any computation
         self.data["feature_id"] = self.data.apply(
-            self._feature_id_parser, axis=1, meta=("int")
+            self._feature_id_parser, axis=1, meta=pd.Series([1])
         )
 
         # self._do_filter() # TODO: this may be slowing things down
         self.data = self.data[self.data["stay_id"].isin(self.stay_ids)]
 
         self.data["stime"] = dd.to_datetime(
-            self.data.apply(self._stime_parser, axis=1, meta=("str"))
+            self.data.apply(
+                self._stime_parser, axis=1, meta=pd.Series(["2157-10-13 11:21:52"])
+            )
         )
         self.data["etime"] = dd.to_datetime(
-            self.data.apply(self._etime_parser, axis=1, meta=("str"))
+            self.data.apply(
+                self._etime_parser, axis=1, meta=pd.Series(["2157-10-13 11:21:52"])
+            )
         )
-        self.data["value"] = self.data.apply(self._value_parser, axis=1, meta=("float"))
+        self.data["value"] = self.data.apply(
+            self._value_parser, axis=1, meta=pd.Series([0.0])
+        )
 
         # Do the agg
-        self.data.groupby("stay_id").apply(self._handle_stay_group, meta=()).compute(
-            scheduler="processes", num_workers=self.cores_available
-        )
+        self.data.groupby("stay_id").apply(
+            self._handle_stay_group, meta=pd.DataFrame()
+        ).compute(scheduler="processes", num_workers=self.cores_available)
 
         # Make dummy dataframes for anything that doesn't have data
         for sid in self.stay_ids:
