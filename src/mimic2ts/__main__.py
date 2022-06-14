@@ -1,4 +1,4 @@
-from src.mimic2ts import EventsAggregator
+from mimic2ts import EventsAggregator
 import argparse
 
 
@@ -33,7 +33,8 @@ if __name__ == "__main__":
         dst_path=args.dst,
         stay_ids=None,
         feature_ids=None,
-        window_seconds=args.timestep,
+        timestep_seconds=args.timestep,
     )
 
+    print(f"Running aggregator with {ea.aggregators[0].cores_available} processes")
     ea.do_agg()
