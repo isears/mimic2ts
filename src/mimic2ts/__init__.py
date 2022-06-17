@@ -1,4 +1,5 @@
 import dask.dataframe as dd
+from dask.diagnostics import ProgressBar
 import pandas as pd
 import numpy as np
 import os
@@ -182,6 +183,7 @@ class BaseAggregator(object):
             self.data = self.data[self.data["feature_id"].isin(self.feature_ids)]
 
     def do_agg(self):
+        print(f"{type(self).__name__}: running aggregation")
         # Standardize the format before doing any computation
         self.data["feature_id"] = self.data.apply(
             self._feature_id_parser, axis=1, meta=pd.Series([1])
@@ -375,6 +377,8 @@ class EventsAggregator(object):
                     timestep_seconds=timestep_seconds,
                 )
             )
+
+        ProgressBar().register()
 
     def do_agg(self):
         for aggregator in self.aggregators:
