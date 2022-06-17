@@ -49,8 +49,20 @@ all_inclusive_dtypes = {
 if __name__ == "__main__":
     actual_mimic_path = sys.argv[1]
 
-    test_stay_ids = (
-        pd.read_csv("tests/test_stay_ids.csv")["stay_id"].astype(int).to_list()
+    test_stay_ids = [
+        # "Buggy" stay ids that have revealed problems in the past
+        30324975,
+        33990872,
+        # Random sample stay ids
+        30324975,
+        32491957,
+        33000507,
+        38291278,
+        33563199,
+    ]
+
+    pd.Series(test_stay_ids, name="stay_id").to_csv(
+        "tests/test_stay_ids.csv", index=False
     )
 
     print(

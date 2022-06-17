@@ -98,54 +98,73 @@ class BaseAggregator(object):
         raise NotImplementedError
 
     def _handle_feature_group(self, feature_group, tidx_max):
-        feature_group["tidx"] = feature_group.apply(
-            lambda row: range(row["start_tidx"], row["end_tidx"] + 1), axis=1
-        )
-        feature_group = feature_group.explode("tidx")
-        tidx_grouped = feature_group[["tidx", "value"]].groupby("tidx").mean()
-        tidx_grouped = tidx_grouped.reindex(index=range(0, tidx_max + 1), method=None)
-        tidx_grouped["value"] = tidx_grouped["value"].fillna(
-            0.0
-        )  # fill in missing values w/0.0
+        try:
+            feature_group["tidx"] = feature_group.apply(
+                lambda row: range(row["start_tidx"], row["end_tidx"] + 1), axis=1
+            )
+            feature_group = feature_group.explode("tidx")
+            tidx_grouped = feature_group[["tidx", "value"]].groupby("tidx").mean()
+            tidx_grouped = tidx_grouped.reindex(
+                index=range(0, tidx_max + 1), method=None
+            )
+            tidx_grouped["value"] = tidx_grouped["value"].fillna(
+                0.0
+            )  # fill in missing values w/0.0
 
-        return tidx_grouped["value"]
+            return tidx_grouped["value"]
+        except Exception as e:
+            print(f"The feature id triggering the exception is {feature_group.name}")
+            raise e
 
     def _handle_stay_group(self, stay_group):
+        if stay_group.empty:  # Sometimes dask generates empty dataframes
+            return
+
         stay_id = int(stay_group.name)
 
-        intime = self.icustays["intime"].loc[stay_id]
-        tidx_max = self.icustays["total_windows"].loc[stay_id]
+        try:
 
-        # Convert to epoch seconds
-        stay_group["start_tidx"] = (
-            stay_group["stime"].values.astype(np.int64) // 10**9
-        )
-        stay_group["end_tidx"] = stay_group["etime"].values.astype(np.int64) // 10**9
-        # ... and then to # of timesteps since icu stay start
-        stay_group["start_tidx"] = np.floor_divide(
-            (stay_group["start_tidx"] - intime), self.timestep_seconds
-        )
-        stay_group["end_tidx"] = np.floor_divide(
-            (stay_group["end_tidx"] - intime), self.timestep_seconds
-        )
+            intime = self.icustays["intime"].loc[stay_id]
+            tidx_max = self.icustays["total_windows"].loc[stay_id]
 
-        # Consider any measures taken before the official start of the icu stay
-        # as taken at tidx 0
-        stay_group["start_tidx"] = stay_group["start_tidx"].apply(
-            lambda x: x if x > 0 else 0
-        )
-        stay_group["end_tidx"] = stay_group["end_tidx"].apply(
-            lambda x: x if x > 0 else 0
-        )
+            # Convert to epoch seconds
+            stay_group["start_tidx"] = (
+                stay_group["stime"].values.astype(np.int64) // 10**9
+            )
+            stay_group["end_tidx"] = (
+                stay_group["etime"].values.astype(np.int64) // 10**9
+            )
+            # ... and then to # of timesteps since icu stay start
+            stay_group["start_tidx"] = np.floor_divide(
+                (stay_group["start_tidx"] - intime), self.timestep_seconds
+            )
+            stay_group["end_tidx"] = np.floor_divide(
+                (stay_group["end_tidx"] - intime), self.timestep_seconds
+            )
 
-        # Drop any measures taken after the official end of the icu stay
-        stay_group = stay_group[stay_group["start_tidx"] <= tidx_max]
+            # Consider any measures taken before the official start of the icu stay
+            # as taken at tidx 0
+            stay_group["start_tidx"] = stay_group["start_tidx"].apply(
+                lambda x: x if x > 0 else 0
+            )
+            stay_group["end_tidx"] = stay_group["end_tidx"].apply(
+                lambda x: x if x > 0 else 0
+            )
 
-        stay_groups_by_featureid = stay_group.groupby("feature_id")
-        by_feature = stay_groups_by_featureid.apply(
-            self._handle_feature_group, tidx_max=tidx_max
-        )
-        by_feature.to_csv(f"{self.dst_path}/{stay_id}/{self.name}_features.csv")
+            # Drop any measures taken after the official end of the icu stay
+            stay_group = stay_group[stay_group["start_tidx"] <= tidx_max]
+
+            if stay_group.empty:  # Check again in case tdx filtering dropped everything
+                return
+
+            stay_groups_by_featureid = stay_group.groupby("feature_id")
+            by_feature = stay_groups_by_featureid.apply(
+                self._handle_feature_group, tidx_max=tidx_max
+            )
+            by_feature.to_csv(f"{self.dst_path}/{stay_id}/{self.name}_features.csv")
+        except Exception as e:
+            print(f"The stay id triggering the exception is {stay_id}")
+            raise e
 
     def _do_filter(self):
         # optimize filtering for large or small numbers of feature / stay ids

@@ -4,9 +4,7 @@ import pandas as pd
 import shutil
 from datetime import datetime
 import numpy as np
-
-# Import without packaging?
-from src.mimic2ts import EventsAggregator
+from mimic2ts import EventsAggregator
 
 
 class TestEventsAggregator(unittest.TestCase):
@@ -21,13 +19,6 @@ class TestEventsAggregator(unittest.TestCase):
         )
 
         cls.icustays = pd.read_csv("testmimic/icu/icustays.csv")
-
-        if os.getenv("SHORTTEST") is None:
-            print("[*] Running long version of test")
-        else:
-            print("[*] Running short version of test")
-            cls.test_stay_ids = cls.test_stay_ids[0:10]
-
         cls.test_feature_ids = pd.read_csv("tests/test_feature_ids.csv")[
             "feature_id"
         ].to_list()
@@ -60,7 +51,9 @@ class TestEventsAggregator(unittest.TestCase):
         """
 
         all_dirs = [dirname for dirname in os.listdir("./testcache")]
-        assert len(all_dirs) == len(self.test_stay_ids)
+        # Can no longer guarantee that a directory will be produced for each stay id
+        # Certain stay ids don't have any events recorded for the icu stay
+        # assert len(all_dirs) == len(self.test_stay_ids)
 
         for dirname in all_dirs:
             fnames = [fname for fname in os.listdir(f"./testcache/{dirname}")]
