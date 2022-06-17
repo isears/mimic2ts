@@ -4,10 +4,16 @@ Data processing tool to convert tabular data from [MIMIC IV](https://mimic.mit.e
 
 ## Install
 
+For normal usage:
 ```bash
 git clone https://github.com/isears/mimic2ts
 cd mimic2ts
 pip install ./
+```
+
+For debugging and running tests:
+```bash
+pip install --editable ./
 ```
 
 ## Run
