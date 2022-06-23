@@ -53,6 +53,12 @@ if __name__ == "__main__":
         # "Buggy" stay ids that have revealed problems in the past
         30324975,
         33990872,
+        ## stays ids that broke after inputevents refactor
+        34909767,
+        37533185,
+        31738657,
+        30720284,
+        35601991,
         # Random sample stay ids
         30324975,
         32491957,

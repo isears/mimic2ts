@@ -285,7 +285,8 @@ class InputEventAggregator(BaseAggregator):
             stay_group["event_epoch_time"] = stay_group.apply(
                 lambda row: range(
                     row["start_epoch_time"],
-                    row["end_epoch_time"],
+                    # Guaranteed to always have one element
+                    row["end_epoch_time"] + self.timestep_seconds,
                     self.timestep_seconds,
                 ),
                 axis=1,
