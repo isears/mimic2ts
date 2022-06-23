@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="mimic2ts",
-    version="0.0.1",
+    version="0.1.0",
     author="Isaac Sears",
     author_email="isaac.j.sears@gmail.com",
     description="Convert MIMIC IV tabular data into timeseries",
@@ -21,11 +21,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     package_dir={"": "src"},
-    install_requires=[
-        'dask',
-        'pandas',
-        'numpy'
-    ],
+    install_requires=["dask", "pandas", "numpy"],
     packages=setuptools.find_packages(where="src"),
     python_requires=">=3.6",
 )
