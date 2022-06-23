@@ -19,6 +19,10 @@ class TestEventsAggregator(unittest.TestCase):
         )
 
         cls.icustays = pd.read_csv("testmimic/icu/icustays.csv")
+        cls.inputevents = pd.read_csv("testmimic/icu/inputevents.csv")
+        cls.outputevents = pd.read_csv("testmimic/icu/outputevents.csv")
+        cls.chartevents = pd.read_csv("testmimic/icu/chartevents.csv")
+
         cls.test_feature_ids = pd.read_csv("tests/test_feature_ids.csv")[
             "feature_id"
         ].to_list()
@@ -97,70 +101,75 @@ class TestEventsAggregator(unittest.TestCase):
                     f"expected {total_timesteps}, got {len(df.columns) - 1}"
                 )
 
-    def test_event_has_seq_entry(self):
-        """
-        Test that every event recorded during the icu stay in MIMIC has a corresponding
-        entry in the output timeseries sequence
-        """
+    def test_chartevent_close(self):
+        averaged_chartevents = self.chartevents.groupby(["stay_id", "itemid"]).apply(
+            lambda g: (g["valuenum"].astype("float")).mean()
+        )
 
-        def assert_event_represented(row, aggregator):
-            stay_id = row["stay_id"]
-            feature_id = aggregator._feature_id_parser(row)
-            # original_value = aggregator._value_parser(row)
+        stay_ids_with_chartevents = self.chartevents["stay_id"].unique()
 
-            output_df = pd.read_csv(
-                f"testcache/{stay_id}/{aggregator.name}_features.csv"
+        for sid in stay_ids_with_chartevents:
+            aggregated_chartevents = pd.read_csv(
+                f"testcache/{sid}/chartevents_features.csv", index_col=0
             )
+            aggregated_chartevents["avg"] = aggregated_chartevents.mean(axis=1)
+            averaged_chartevents_by_type = averaged_chartevents.loc[sid]
 
-            feature_time_series = output_df[output_df["feature_id"] == feature_id]
-            assert len(feature_time_series) == 1
-            # Drop first column b/c it's just the feature id
-            feature_time_series = feature_time_series.iloc[0].to_list()[1:]
+            for feature_id in averaged_chartevents_by_type.index.to_list():
 
-            icustay_row = self.icustays[self.icustays["stay_id"] == stay_id].iloc[0]
-            intime = TestEventsAggregator._convert_mimic_date_str_to_epoch(
-                icustay_row["intime"]
-            )
+                # Averages will not be exact for time window settings that are larger than
+                # the smallest time between chartevent measurements,
+                # so just testing if within 10%
+                actual = aggregated_chartevents["avg"].loc[feature_id]
+                desired = averaged_chartevents_by_type.loc[feature_id]
+                assert np.isclose(
+                    actual,
+                    desired,
+                    rtol=0.1,
+                )
 
-            stime = TestEventsAggregator._convert_mimic_date_str_to_epoch(
-                aggregator._stime_parser(row)
-            )
-            etime = TestEventsAggregator._convert_mimic_date_str_to_epoch(
-                aggregator._etime_parser(row)
-            )
+    def test_input_conserved(self):
 
-            start_tidx = (stime - intime) // self.timestep_seconds
-            end_tidx = (etime - intime) // self.timestep_seconds
+        total_inputs = self.inputevents.groupby(["stay_id", "itemid"]).apply(
+            lambda g: (
+                g["amount"].astype("float") / g["patientweight"].astype("float")
+            ).sum()
+        )
 
-            assert start_tidx >= 0 and start_tidx < len(feature_time_series), (
-                f"Invalid start index {start_tidx} for stay id {stay_id} and "
-                f"feature id {feature_id}"
-            )
-            assert end_tidx >= 0 and end_tidx < len(feature_time_series), (
-                f"Invalid end index {end_tidx} for stay id {stay_id} and "
-                f"feature id {feature_id}"
-            )
+        stay_ids_with_inputevents = self.inputevents["stay_id"].unique()
 
-            # Can't test value b/c several values may be averaged for one timestep
+        for sid in stay_ids_with_inputevents:
+            aggregated_inputs = pd.read_csv(
+                f"testcache/{sid}/inputevents_features.csv", index_col=0
+            )
+            aggregated_inputs["sum"] = aggregated_inputs.sum(axis=1)
+            total_inputs_by_type = total_inputs.loc[sid]
 
-        for aggregator in self.ea.aggregators:
-            original_df = pd.read_csv(f"testmimic/icu/{aggregator.name}.csv")
-            original_df = original_df[original_df["stay_id"].isin(self.test_stay_ids)]
-            original_df["stime"] = original_df.apply(aggregator._stime_parser, axis=1)
-            original_df["etime"] = original_df.apply(aggregator._etime_parser, axis=1)
-            original_df = original_df.merge(
-                self.icustays[["stay_id", "intime", "outtime"]],
-                how="left",
-                on="stay_id",
+            for feature_id in total_inputs_by_type.index.to_list():
+                np.testing.assert_almost_equal(
+                    total_inputs_by_type.loc[feature_id],
+                    aggregated_inputs["sum"].loc[feature_id],
+                )
+
+    def test_output_conserved(self):
+        total_outputs = self.outputevents.groupby(["stay_id", "itemid"]).apply(
+            lambda g: (g["value"].astype("float")).sum()
+        )
+
+        stay_ids_with_outputevents = self.outputevents["stay_id"].unique()
+
+        for sid in stay_ids_with_outputevents:
+            aggregated_outputs = pd.read_csv(
+                f"testcache/{sid}/outputevents_features.csv", index_col=0
             )
-            original_df[["stime", "etime", "intime", "outtime"]] = original_df[
-                ["stime", "etime", "intime", "outtime"]
-            ].apply(pd.to_datetime)
-            original_df = original_df[original_df["stime"] > original_df["intime"]]
-            original_df = original_df[original_df["etime"] < original_df["outtime"]]
-            original_df.apply(
-                lambda row: assert_event_represented(row, aggregator), axis=1
-            )
+            aggregated_outputs["sum"] = aggregated_outputs.sum(axis=1)
+            total_outputs_by_type = total_outputs.loc[sid]
+
+            for feature_id in total_outputs_by_type.index.to_list():
+                np.testing.assert_almost_equal(
+                    total_outputs_by_type.loc[feature_id],
+                    aggregated_outputs["sum"].loc[feature_id],
+                )
 
 
 if __name__ == "__main__":

@@ -1,3 +1,4 @@
+import dask
 import dask.dataframe as dd
 from dask.diagnostics import ProgressBar
 import pandas as pd
@@ -86,25 +87,30 @@ class BaseAggregator(object):
         self.icustays = self.icustays[["stay_id", "intime", "outtime", "total_windows"]]
         self.icustays = self.icustays.set_index("stay_id")
 
+    def _feature_combiner(self, tidx_group: pd.DataFrame):
+        """
+        How to combine features when there's many in one time window
+        """
+        raise NotImplementedError
+
     def _feature_id_parser(self, row):
         return int(row["itemid"])  # Sane default for chartevents, labevents, etc.
 
     def _value_parser(self, row):
-        return float(row["valuenum"])  # Sane default for chartevents
-
-    def _stime_parser(self, row):
         raise NotImplementedError
 
-    def _etime_parser(self, row):
-        raise NotImplementedError
+    def _parse_dates(self):
+        self.data["event_epoch_time"] = (
+            dd.to_datetime(self.data["charttime"]).values.astype(np.int64) // 10**9
+        )
 
     def _handle_feature_group(self, feature_group, tidx_max):
         try:
-            feature_group["tidx"] = feature_group.apply(
-                lambda row: range(row["start_tidx"], row["end_tidx"] + 1), axis=1
+            tidx_grouped = (
+                feature_group[["tidx", "value"]]
+                .groupby("tidx")
+                .apply(lambda x: self._feature_combiner(x))
             )
-            feature_group = feature_group.explode("tidx")
-            tidx_grouped = feature_group[["tidx", "value"]].groupby("tidx").mean()
             tidx_grouped = tidx_grouped.reindex(
                 index=range(0, tidx_max + 1), method=None
             )
@@ -128,32 +134,18 @@ class BaseAggregator(object):
             intime = self.icustays["intime"].loc[stay_id]
             tidx_max = self.icustays["total_windows"].loc[stay_id]
 
-            # Convert to epoch seconds
-            stay_group["start_tidx"] = (
-                stay_group["stime"].values.astype(np.int64) // 10**9
-            )
-            stay_group["end_tidx"] = (
-                stay_group["etime"].values.astype(np.int64) // 10**9
-            )
-            # ... and then to # of timesteps since icu stay start
-            stay_group["start_tidx"] = np.floor_divide(
-                (stay_group["start_tidx"] - intime), self.timestep_seconds
-            )
-            stay_group["end_tidx"] = np.floor_divide(
-                (stay_group["end_tidx"] - intime), self.timestep_seconds
-            )
+            stay_group["tidx"] = (
+                np.floor_divide(
+                    (stay_group["event_epoch_time"] - intime), self.timestep_seconds
+                )
+            ).astype("int")
 
             # Consider any measures taken before the official start of the icu stay
             # as taken at tidx 0
-            stay_group["start_tidx"] = stay_group["start_tidx"].apply(
-                lambda x: x if x > 0 else 0
-            )
-            stay_group["end_tidx"] = stay_group["end_tidx"].apply(
-                lambda x: x if x > 0 else 0
-            )
+            stay_group["tidx"] = stay_group["tidx"].apply(lambda x: x if x > 0 else 0.0)
 
             # Drop any measures taken after the official end of the icu stay
-            stay_group = stay_group[stay_group["start_tidx"] <= tidx_max]
+            stay_group = stay_group[stay_group["tidx"] <= tidx_max]
 
             if stay_group.empty:  # Check again in case tdx filtering dropped everything
                 return
@@ -184,6 +176,8 @@ class BaseAggregator(object):
 
     def do_agg(self):
         print(f"{type(self).__name__}: running aggregation")
+        self._parse_dates()
+
         # Standardize the format before doing any computation
         self.data["feature_id"] = self.data.apply(
             self._feature_id_parser, axis=1, meta=pd.Series([1])
@@ -192,16 +186,6 @@ class BaseAggregator(object):
         # self._do_filter() # TODO: this may be slowing things down
         self.data = self.data[self.data["stay_id"].isin(self.stay_ids)]
 
-        self.data["stime"] = dd.to_datetime(
-            self.data.apply(
-                self._stime_parser, axis=1, meta=pd.Series(["2157-10-13 11:21:52"])
-            )
-        )
-        self.data["etime"] = dd.to_datetime(
-            self.data.apply(
-                self._etime_parser, axis=1, meta=pd.Series(["2157-10-13 11:21:52"])
-            )
-        )
         self.data["value"] = self.data.apply(
             self._value_parser, axis=1, meta=pd.Series([0.0])
         )
@@ -244,11 +228,11 @@ class ChartEventAggregator(BaseAggregator):
             mimic_path, dst_path, stay_ids, feature_ids, timestep_seconds, "chartevents"
         )
 
-    def _stime_parser(self, row):
-        return row["charttime"]
+    def _value_parser(self, row):
+        return float(row["valuenum"])
 
-    def _etime_parser(self, row):
-        return row["charttime"]
+    def _feature_combiner(self, tidx_group: pd.DataFrame):
+        return tidx_group.mean()
 
 
 class InputEventAggregator(BaseAggregator):
@@ -273,20 +257,53 @@ class InputEventAggregator(BaseAggregator):
             mimic_path, dst_path, stay_ids, feature_ids, timestep_seconds, "inputevents"
         )
 
-    def _stime_parser(self, row):
-        return row["starttime"]
-
-    def _etime_parser(self, row):
-        return row["endtime"]
-
     def _value_parser(self, row):
-        # TODO: handle this divide by 0 more gracefully
-        if (row["etime"] - row["stime"]).total_seconds() < self.timestep_seconds:
-            return row["amount"]
-        else:
-            return (
-                row["amount"] / (row["etime"] - row["stime"]).total_seconds()
-            ) / row["patientweight"]
+        return row["amount"] / row["patientweight"]
+
+    def _feature_combiner(self, tidx_group: pd.DataFrame):
+        return tidx_group.sum()
+
+    def _parse_dates(self):
+        self.data["start_epoch_time"] = (
+            dd.to_datetime(self.data["starttime"]).values.astype(np.int64) // 10**9
+        )
+        self.data["end_epoch_time"] = (
+            dd.to_datetime(self.data["endtime"]).values.astype(np.int64) // 10**9
+        )
+
+    def _handle_stay_group(self, stay_group):
+        """
+        Specialized method to handle stay groups for inputevents so that
+        events can be generated in range between starttime and endtime
+        """
+        if stay_group.empty:  # Sometimes dask generates empty dataframes
+            return
+
+        stay_id = int(stay_group.name)
+
+        try:
+            stay_group["event_epoch_time"] = stay_group.apply(
+                lambda row: range(
+                    row["start_epoch_time"],
+                    row["end_epoch_time"],
+                    self.timestep_seconds,
+                ),
+                axis=1,
+            )
+
+            # Evenly divide the dose over all windows
+            stay_group["value"] = stay_group.apply(
+                lambda row: row["value"] / len(row["event_epoch_time"]), axis=1
+            )
+
+            stay_group = stay_group.explode("event_epoch_time")
+            stay_group.name = stay_id  # Give it back so super can read it
+
+        except Exception as e:
+            print(f"The stay id triggering the exception is {stay_id}")
+            raise e
+
+        super()._handle_stay_group(stay_group)
 
 
 class OutputEventAggregator(BaseAggregator):
@@ -316,14 +333,11 @@ class OutputEventAggregator(BaseAggregator):
             "outputevents",
         )
 
-    def _stime_parser(self, row):
-        return row["charttime"]
-
-    def _etime_parser(self, row):
-        return row["charttime"]
-
     def _value_parser(self, row):
         return float(row["value"])
+
+    def _feature_combiner(self, tidx_group: pd.DataFrame):
+        return tidx_group.sum()
 
 
 class EventsAggregator(object):
