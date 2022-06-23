@@ -101,35 +101,63 @@ class TestEventsAggregator(unittest.TestCase):
                     f"expected {total_timesteps}, got {len(df.columns) - 1}"
                 )
 
-    def test_chartevent_close(self):
-        averaged_chartevents = self.chartevents.groupby(["stay_id", "itemid"]).apply(
+    def test_numerical_chartevent_close(self):
+        """
+        Tests that the average of all numerical chartevents for a given feature is within
+        10% of the average of the chartevents in the aggregated time series.
+        The averages may not be exactly equal b/c if there are several measurements in one
+        time window they will appear as multiple values in the original chartevents, but
+        will be a single value in the corresponding aggregated timeseries.
+        """
+        # dropping all chartevents with a value of 0.0 b/c 0.0 is used as the "filler" value during agg
+        nonzero_ce = self.chartevents[
+            (self.chartevents["valuenum"] != 0.0)
+            & (~self.chartevents["valuenum"].isna())
+        ]
+
+        averaged_chartevents = nonzero_ce.groupby(["stay_id", "itemid"]).apply(
             lambda g: (g["valuenum"].astype("float")).mean()
         )
 
-        stay_ids_with_chartevents = self.chartevents["stay_id"].unique()
+        stay_ids_with_chartevents = nonzero_ce["stay_id"].unique()
 
         for sid in stay_ids_with_chartevents:
             aggregated_chartevents = pd.read_csv(
                 f"testcache/{sid}/chartevents_features.csv", index_col=0
             )
-            aggregated_chartevents["avg"] = aggregated_chartevents.mean(axis=1)
-            averaged_chartevents_by_type = averaged_chartevents.loc[sid]
 
-            for feature_id in averaged_chartevents_by_type.index.to_list():
+            curr_sid_averaged_chartevents = averaged_chartevents.loc[sid]
+
+            for feature_id in curr_sid_averaged_chartevents.index.to_list():
+                curr_feature_timeseries = aggregated_chartevents.loc[feature_id]
+
+                # Need to drop 0.0s because they are "filler" values during agg
+                curr_feature_timeseries = curr_feature_timeseries[
+                    curr_feature_timeseries != 0.0
+                ]
 
                 # Averages will not be exact for time window settings that are larger than
                 # the smallest time between chartevent measurements,
                 # so just testing if within 10%
-                actual = aggregated_chartevents["avg"].loc[feature_id]
-                desired = averaged_chartevents_by_type.loc[feature_id]
-                assert np.isclose(
-                    actual,
-                    desired,
-                    rtol=0.1,
-                )
+                actual = curr_feature_timeseries.mean()
+                desired = curr_sid_averaged_chartevents.loc[feature_id]
+
+                # It's ok to be nan as long as both are nan
+                if np.isnan(desired):
+                    assert np.isnan(actual)
+                else:
+                    assert np.isclose(
+                        actual,
+                        desired,
+                        rtol=0.1,
+                    ), f"[-] Isclose test failed for feature id {feature_id} and stay id {sid}: desired {desired}, actual {actual}"
 
     def test_input_conserved(self):
-
+        """
+        Tests that, for each input type, the sum-total volume of input calculated
+        from the original mimic data and the sum-total volume of input calculated
+        from the aggregated timeseries is equal.
+        """
         total_inputs = self.inputevents.groupby(["stay_id", "itemid"]).apply(
             lambda g: (
                 g["amount"].astype("float") / g["patientweight"].astype("float")
@@ -152,6 +180,11 @@ class TestEventsAggregator(unittest.TestCase):
                 )
 
     def test_output_conserved(self):
+        """
+        Tests that, for each output type, the sum-total volume of output calculated
+        from the original mimic data and the sum-total volume of output calculated
+        from the aggregated timeseries is equal.
+        """
         total_outputs = self.outputevents.groupby(["stay_id", "itemid"]).apply(
             lambda g: (g["value"].astype("float")).sum()
         )
