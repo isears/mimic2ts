@@ -19,6 +19,13 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--exclude",
+        type=str,
+        required=False,
+        help="comma seperated list of datasources to exclude. E.g. '--exclude chartevents,outputevents'",
+    )
+
+    parser.add_argument(
         "--timestep",
         type=int,
         required=False,
@@ -28,12 +35,18 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    excluded_sources = dict()
+
+    for excluded_source in args.exclude.split(","):
+        excluded_sources[excluded_source.strip()] = False
+
     ea = EventsAggregator(
         mimic_path=args.src,
         dst_path=args.dst,
         stay_ids=None,
         feature_ids=None,
         timestep_seconds=args.timestep,
+        **excluded_sources,
     )
 
     print(f"Running aggregator with {ea.aggregators[0].cores_available} processes")
