@@ -2,6 +2,8 @@
 
 Data processing tool to convert tabular data from [MIMIC IV](https://mimic.mit.edu/docs/) to timeseries data.
 
+NB: This tools has not been updated for MIMIC IV v1.0. It has only been tested on MIMIC IV v0.4.
+
 ## Install
 
 For normal usage:
