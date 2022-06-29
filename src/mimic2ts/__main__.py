@@ -1,5 +1,9 @@
 from mimic2ts import EventsAggregator
 import argparse
+import datetime
+
+import mimic2ts
+from mimic2ts.gitinfo import commithash
 
 
 if __name__ == "__main__":
@@ -50,4 +54,18 @@ if __name__ == "__main__":
     )
 
     print(f"Running aggregator with {ea.aggregators[0].cores_available} processes")
+    starttime = datetime.datetime.now()
     ea.do_agg()
+    runtime = datetime.datetime.now() - starttime
+
+    arg_str = "\n".join(f"{k}={v}" for k, v in vars(args).items())
+
+    with open(f"{args.dst}/readme.txt", "w") as f:
+        f.writelines(
+            [
+                f"Mimic2ts version {mimic2ts.__version__}:{commithash} aggregation completed on {datetime.datetime.now()}",
+                f"Runtime: {str(runtime)}",
+                "Arguments:",
+                arg_str,
+            ]
+        )
