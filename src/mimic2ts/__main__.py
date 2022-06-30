@@ -41,8 +41,9 @@ if __name__ == "__main__":
 
     excluded_sources = dict()
 
-    for excluded_source in args.exclude.split(","):
-        excluded_sources[excluded_source.strip()] = False
+    if args.exclude:
+        for excluded_source in args.exclude.split(","):
+            excluded_sources[excluded_source.strip()] = False
 
     ea = EventsAggregator(
         mimic_path=args.src,
