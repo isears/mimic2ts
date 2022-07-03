@@ -35,10 +35,10 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--blocksize",
-        type=int,
+        type=str,
         required=False,
         help="Dask blocksize: bigger is faster for a single worker but smaller means more workers can participate",
-        default=1e6,
+        default="default",
     )
 
     args = parser.parse_args()
@@ -48,6 +48,14 @@ if __name__ == "__main__":
     if args.exclude:
         for excluded_source in args.exclude.split(","):
             excluded_sources[excluded_source.strip()] = False
+
+    try:
+        blocksize = int(args.blocksize)
+    except ValueError:
+        assert (
+            args.blocksize == "default"
+        ), f"[-] Error invalid value for blocksize: {args.blocksize}"
+        blocksize = args.blocksize
 
     ea = EventsAggregator(
         mimic_path=args.src,
