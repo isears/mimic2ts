@@ -10,14 +10,11 @@ if __name__ == "__main__":
         description="Convert MIMIC IV tabular data to time series matrices"
     )
 
-    parser.add_argument(
-        "src", type=str, required=True, help="path to the MIMIC IV database"
-    )
+    parser.add_argument("src", type=str, help="path to the MIMIC IV database")
 
     parser.add_argument(
         "dst",
         type=str,
-        required=True,
         help="path to a writeable directory for outputs",
     )
 
