@@ -420,6 +420,7 @@ class ProcedureEventAggregator(BaseAggregator):
         super()._handle_stay_group(stay_group)
 
 
+# TODO: this could just be a function
 class EventsAggregator(object):
     def __init__(
         self,
