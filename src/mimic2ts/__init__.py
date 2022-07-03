@@ -215,7 +215,7 @@ class ChartEventAggregator(BaseAggregator):
         stay_ids: List[int],
         feature_ids: List[int],
         timestep_seconds: int = 3600,
-        blocksize=10e6,
+        blocksize=1e6,
     ):
 
         self.data = dd.read_csv(
@@ -244,7 +244,7 @@ class InputEventAggregator(BaseAggregator):
         stay_ids: List[int],
         feature_ids: List[int],
         timestep_seconds: int = 3600,
-        blocksize=10e6,
+        blocksize=1e6,
     ):
 
         self.data = dd.read_csv(
@@ -316,7 +316,7 @@ class OutputEventAggregator(BaseAggregator):
         stay_ids: List[int],
         feature_ids: List[int],
         timestep_seconds: int = 3600,
-        blocksize=10e6,
+        blocksize=1e6,
     ):
 
         self.data = dd.read_csv(
@@ -350,7 +350,7 @@ class ProcedureEventAggregator(BaseAggregator):
         stay_ids: List[int],
         feature_ids: List[int],
         timestep_seconds: int = 3600,
-        blocksize=10e6,
+        blocksize=1e6,
     ):
 
         self.data = dd.read_csv(

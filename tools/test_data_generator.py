@@ -95,7 +95,7 @@ if __name__ == "__main__":
         data = dd.read_csv(
             f"{actual_mimic_path}/{ds}",
             assume_missing=True,
-            blocksize=10e6,
+            blocksize=1e6,
             dtype=all_inclusive_dtypes,
         )
 
