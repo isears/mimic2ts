@@ -184,8 +184,9 @@ class BaseAggregator(object):
             self._feature_id_parser, axis=1, meta=pd.Series([1])
         )
 
-        # self._do_filter() # TODO: this may be slowing things down
-        self.data = self.data[self.data["stay_id"].isin(self.stay_ids)]
+        # TODO: this may be slowing things down
+        # self._do_filter()
+        # self.data = self.data[self.data["stay_id"].isin(self.stay_ids)]
 
         self.data["value"] = self.data.apply(
             self._value_parser, axis=1, meta=pd.Series([0.0])
