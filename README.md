@@ -24,15 +24,20 @@ pip install --editable ./
 python -m mimic2ts -h
 ```
 ```
-usage: __main__.py [-h] --src SRC --dst DST [--timestep TIMESTEP]
+usage: __main__.py [-h] [--exclude EXCLUDE] [--timestep TIMESTEP] [--blocksize BLOCKSIZE] src dst
 
 Convert MIMIC IV tabular data to time series matrices
 
+positional arguments:
+  src                   path to the MIMIC IV database
+  dst                   path to a writeable directory for outputs
+
 optional arguments:
-  -h, --help           show this help message and exit
-  --src SRC            path to the MIMIC IV database
-  --dst DST            path to a writeable directory for outputs
-  --timestep TIMESTEP  Timeseries timestep value (in seconds)
+  -h, --help            show this help message and exit
+  --exclude EXCLUDE     comma seperated list of datasources to exclude. E.g. '--exclude chartevents,outputevents'
+  --timestep TIMESTEP   Timeseries timestep value (in seconds)
+  --blocksize BLOCKSIZE
+                        Dask blocksize: bigger is faster for a single worker but smaller means more workers can participate
 ```
 
 ## Expected Results
