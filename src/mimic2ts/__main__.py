@@ -11,11 +11,11 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--src", type=str, required=True, help="path to the MIMIC IV database"
+        "src", type=str, required=True, help="path to the MIMIC IV database"
     )
 
     parser.add_argument(
-        "--dst",
+        "dst",
         type=str,
         required=True,
         help="path to a writeable directory for outputs",
@@ -36,6 +36,14 @@ if __name__ == "__main__":
         default=3600,
     )
 
+    parser.add_argument(
+        "--blocksize",
+        type=int,
+        required=False,
+        help="Dask blocksize: bigger is faster for a single worker but smaller means more workers can participate",
+        default="1e6",
+    )
+
     args = parser.parse_args()
 
     excluded_sources = dict()
@@ -50,6 +58,7 @@ if __name__ == "__main__":
         stay_ids=None,
         feature_ids=None,
         timestep_seconds=args.timestep,
+        blocksize=args.blocksize,
         **excluded_sources,
     )
 
@@ -61,11 +70,9 @@ if __name__ == "__main__":
     arg_str = "\n".join(f"{k}={v}" for k, v in vars(args).items())
 
     with open(f"{args.dst}/readme.txt", "w") as f:
-        f.writelines(
-            [
-                f"Mimic2ts version {mimic2ts.__version__} aggregation completed on {datetime.datetime.now()}",
-                f"Runtime: {str(runtime)}",
-                "Arguments:",
-                arg_str,
-            ]
+        f.write(
+            f"Mimic2ts version {mimic2ts.__version__} aggregation completed on {datetime.datetime.now()}\n"
         )
+        f.write(f"Runtime: {str(runtime)}\n")
+        f.write("Arguments:\n")
+        f.write(arg_str)

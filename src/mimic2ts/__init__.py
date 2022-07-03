@@ -429,6 +429,7 @@ class EventsAggregator(object):
         stay_ids: List[int],
         feature_ids: List[int],
         timestep_seconds: int = 3600,
+        blocksize: int = 1e6,
         chartevents: bool = True,
         inputevents: bool = True,
         outputevents: bool = True,
@@ -449,6 +450,7 @@ class EventsAggregator(object):
                     stay_ids,
                     feature_ids,
                     timestep_seconds=timestep_seconds,
+                    blocksize=blocksize,
                 )
             )
 
@@ -460,6 +462,7 @@ class EventsAggregator(object):
                     stay_ids,
                     feature_ids,
                     timestep_seconds=timestep_seconds,
+                    blocksize=blocksize,
                 )
             )
 
@@ -471,6 +474,7 @@ class EventsAggregator(object):
                     stay_ids,
                     feature_ids,
                     timestep_seconds=timestep_seconds,
+                    blocksize=blocksize,
                 )
             )
 
@@ -482,6 +486,7 @@ class EventsAggregator(object):
                     stay_ids,
                     feature_ids,
                     timestep_seconds=timestep_seconds,
+                    blocksize=blocksize,
                 )
             )
 
