@@ -1,14 +1,7 @@
 import setuptools
-import subprocess
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
-
-with open("src/mimic2ts/gitinfo.py", "w") as fh:
-    sha = subprocess.run(
-        ["git", "rev-parse", "HEAD"], check=True, capture_output=True, text=True
-    ).stdout
-    fh.write(f'commithash="{sha.strip()}"')
 
 exec(open("src/mimic2ts/version.py").read())
 

@@ -3,7 +3,6 @@ import argparse
 import datetime
 
 import mimic2ts
-from mimic2ts.gitinfo import commithash
 
 
 if __name__ == "__main__":
@@ -64,7 +63,7 @@ if __name__ == "__main__":
     with open(f"{args.dst}/readme.txt", "w") as f:
         f.writelines(
             [
-                f"Mimic2ts version {mimic2ts.__version__}:{commithash} aggregation completed on {datetime.datetime.now()}",
+                f"Mimic2ts version {mimic2ts.__version__} aggregation completed on {datetime.datetime.now()}",
                 f"Runtime: {str(runtime)}",
                 "Arguments:",
                 arg_str,
