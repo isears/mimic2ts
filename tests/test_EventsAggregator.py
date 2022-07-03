@@ -156,6 +156,10 @@ class TestEventsAggregator(unittest.TestCase):
                     ), f"[-] Isclose test failed for feature id {feature_id} and stay id {sid}: desired {desired}, actual {actual}"
 
     def test_summed_events_conserved(self):
+        """
+        Test that events that are aggregated by the "sum" function are conserved
+        between the original data and the aggregated version
+        """
         for summed_datasource in [
             "inputevents",
             "outputevents",
