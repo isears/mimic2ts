@@ -38,7 +38,7 @@ if __name__ == "__main__":
         type=int,
         required=False,
         help="Dask blocksize: bigger is faster for a single worker but smaller means more workers can participate",
-        default="1e6",
+        default=1e6,
     )
 
     args = parser.parse_args()
