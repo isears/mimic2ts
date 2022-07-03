@@ -22,6 +22,7 @@ class TestEventsAggregator(unittest.TestCase):
         cls.inputevents = pd.read_csv("testmimic/icu/inputevents.csv")
         cls.outputevents = pd.read_csv("testmimic/icu/outputevents.csv")
         cls.chartevents = pd.read_csv("testmimic/icu/chartevents.csv")
+        cls.procedureevents = pd.read_csv("testmimic/icu/procedureevents.csv")
 
         cls.test_feature_ids = pd.read_csv("tests/test_feature_ids.csv")[
             "feature_id"
@@ -62,10 +63,11 @@ class TestEventsAggregator(unittest.TestCase):
         for dirname in all_dirs:
             fnames = [fname for fname in os.listdir(f"./testcache/{dirname}")]
 
-            assert len(fnames) == 3
+            assert len(fnames) == 4
             assert "chartevents_features.csv" in fnames
             assert "inputevents_features.csv" in fnames
             assert "outputevents_features.csv" in fnames
+            assert "procedureevents_features.csv" in fnames
 
     def test_has_correct_seq_len(self):
         """
@@ -91,6 +93,7 @@ class TestEventsAggregator(unittest.TestCase):
                 f"testcache/{sid}/chartevents_features.csv",
                 f"testcache/{sid}/inputevents_features.csv",
                 f"testcache/{sid}/outputevents_features.csv",
+                f"testcache/{sid}/procedureevents_features.csv",
             ]
 
             for f_df in feature_dataframes:
@@ -152,63 +155,45 @@ class TestEventsAggregator(unittest.TestCase):
                         rtol=0.5,
                     ), f"[-] Isclose test failed for feature id {feature_id} and stay id {sid}: desired {desired}, actual {actual}"
 
-    def test_input_conserved(self):
-        """
-        Tests that, for each input type, the sum-total volume of input calculated
-        from the original mimic data and the sum-total volume of input calculated
-        from the aggregated timeseries is equal.
-        """
-        total_inputs = self.inputevents.groupby(["stay_id", "itemid"]).apply(
-            lambda g: (
-                g["amount"].astype("float") / g["patientweight"].astype("float")
-            ).sum()
-        )
+    def test_summed_events_conserved(self):
+        for summed_datasource in [
+            "inputevents",
+            "outputevents",
+            "procedureevents",
+        ]:
+            df = getattr(self, summed_datasource)
 
-        stay_ids_with_inputevents = self.inputevents["stay_id"].unique()
+            if summed_datasource in ["outputevents", "procedureevents"]:
+                totals = df.groupby(["stay_id", "itemid"]).apply(
+                    lambda g: (g["value"].astype("float")).sum()
+                )
+            elif summed_datasource in ["inputevents"]:
+                totals = df.groupby(["stay_id", "itemid"]).apply(
+                    lambda g: (
+                        g["amount"].astype("float") / g["patientweight"].astype("float")
+                    ).sum()
+                )
 
-        for sid in stay_ids_with_inputevents:
-            aggregated_inputs = pd.read_csv(
-                f"testcache/{sid}/inputevents_features.csv", index_col=0
-            )
-            aggregated_inputs["sum"] = aggregated_inputs.sum(axis=1)
-            total_inputs_by_type = total_inputs.loc[sid]
+            else:
+                raise RuntimeError("Increased datasources without appropriate refactor")
 
-            for feature_id in total_inputs_by_type.index.to_list():
-                actual = total_inputs_by_type.loc[feature_id]
-                desired = aggregated_inputs["sum"].loc[feature_id]
-                assert np.isclose(
-                    actual,
-                    desired,
-                    rtol=0.1,
-                ), f"[-] Isclose test failed for feature id {feature_id} and stay id {sid}: desired {desired}, actual {actual}"
+            stay_ids_with_events = df["stay_id"].unique()
 
-    def test_output_conserved(self):
-        """
-        Tests that, for each output type, the sum-total volume of output calculated
-        from the original mimic data and the sum-total volume of output calculated
-        from the aggregated timeseries is equal.
-        """
-        total_outputs = self.outputevents.groupby(["stay_id", "itemid"]).apply(
-            lambda g: (g["value"].astype("float")).sum()
-        )
+            for sid in stay_ids_with_events:
+                aggregated_events = pd.read_csv(
+                    f"testcache/{sid}/{summed_datasource}_features.csv", index_col=0
+                )
+                aggregated_events["sum"] = aggregated_events.sum(axis=1)
+                totals_by_type = totals.loc[sid]
 
-        stay_ids_with_outputevents = self.outputevents["stay_id"].unique()
-
-        for sid in stay_ids_with_outputevents:
-            aggregated_outputs = pd.read_csv(
-                f"testcache/{sid}/outputevents_features.csv", index_col=0
-            )
-            aggregated_outputs["sum"] = aggregated_outputs.sum(axis=1)
-            total_outputs_by_type = total_outputs.loc[sid]
-
-            for feature_id in total_outputs_by_type.index.to_list():
-                actual = total_outputs_by_type.loc[feature_id]
-                desired = aggregated_outputs["sum"].loc[feature_id]
-                assert np.isclose(
-                    actual,
-                    desired,
-                    rtol=0.1,
-                ), f"[-] Isclose test failed for feature id {feature_id} and stay id {sid}: desired {desired}, actual {actual}"
+                for feature_id in totals_by_type.index.to_list():
+                    actual = totals_by_type.loc[feature_id]
+                    desired = aggregated_events["sum"].loc[feature_id]
+                    assert np.isclose(
+                        actual,
+                        desired,
+                        rtol=0.1,
+                    ), f"[-] Isclose test failed for feature id {feature_id} and stay id {sid}: desired {desired}, actual {actual}"
 
 
 if __name__ == "__main__":

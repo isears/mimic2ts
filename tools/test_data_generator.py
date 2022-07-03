@@ -47,7 +47,10 @@ all_inclusive_dtypes = {
 }
 
 if __name__ == "__main__":
-    actual_mimic_path = sys.argv[1]
+    if len(sys.argv) == 2:
+        actual_mimic_path = sys.argv[1]
+    else:
+        actual_mimic_path = "./mimiciv"
 
     test_stay_ids = [
         # "Buggy" stay ids that have revealed problems in the past
@@ -83,6 +86,7 @@ if __name__ == "__main__":
         "icu/chartevents.csv",
         "icu/inputevents.csv",
         "icu/outputevents.csv",
+        "icu/procedureevents.csv",
     ]
 
     for ds in filter_datasources:

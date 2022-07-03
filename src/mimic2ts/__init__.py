@@ -342,6 +342,84 @@ class OutputEventAggregator(BaseAggregator):
         return tidx_group.sum()
 
 
+class ProcedureEventAggregator(BaseAggregator):
+    def __init__(
+        self,
+        mimic_path: str,
+        dst_path: str,
+        stay_ids: List[int],
+        feature_ids: List[int],
+        timestep_seconds: int = 3600,
+        blocksize=10e6,
+    ):
+
+        self.data = dd.read_csv(
+            f"{mimic_path}/icu/procedureevents.csv",
+            assume_missing=True,
+            blocksize=blocksize,
+            dtype=all_inclusive_dtypes,
+        )
+
+        super().__init__(
+            mimic_path=mimic_path,
+            dst_path=dst_path,
+            stay_ids=stay_ids,
+            feature_ids=feature_ids,
+            timestep_seconds=timestep_seconds,
+            name="procedureevents",
+        )
+
+    def _value_parser(self, row):
+        return float(row["value"])
+
+    def _feature_combiner(self, tidx_group: pd.DataFrame):
+        return tidx_group.sum()
+
+    def _parse_dates(self):
+        self.data["start_epoch_time"] = (
+            dd.to_datetime(self.data["starttime"]).values.astype(np.int64) // 10**9
+        )
+        self.data["end_epoch_time"] = (
+            dd.to_datetime(self.data["endtime"]).values.astype(np.int64) // 10**9
+        )
+
+    # TODO: copied from inputevents; should create abstract class as parent to both
+    def _handle_stay_group(self, stay_group):
+        """
+        Specialized method to handle stay groups for inputevents so that
+        events can be generated in range between starttime and endtime
+        """
+        if stay_group.empty:  # Sometimes dask generates empty dataframes
+            return
+
+        stay_id = int(stay_group.name)
+
+        try:
+            stay_group["event_epoch_time"] = stay_group.apply(
+                lambda row: range(
+                    row["start_epoch_time"],
+                    # Guaranteed to always have one element
+                    row["end_epoch_time"] + self.timestep_seconds,
+                    self.timestep_seconds,
+                ),
+                axis=1,
+            )
+
+            # Evenly divide the dose over all windows
+            stay_group["value"] = stay_group.apply(
+                lambda row: row["value"] / len(row["event_epoch_time"]), axis=1
+            )
+
+            stay_group = stay_group.explode("event_epoch_time")
+            stay_group.name = stay_id  # Give it back so super can read it
+
+        except Exception as e:
+            print(f"The stay id triggering the exception is {stay_id}")
+            raise e
+
+        super()._handle_stay_group(stay_group)
+
+
 class EventsAggregator(object):
     def __init__(
         self,
@@ -353,6 +431,7 @@ class EventsAggregator(object):
         chartevents: bool = True,
         inputevents: bool = True,
         outputevents: bool = True,
+        procedureevents: bool = True,
     ):
 
         self.mimic_path = mimic_path
@@ -386,6 +465,17 @@ class EventsAggregator(object):
         if outputevents:
             self.aggregators.append(
                 OutputEventAggregator(
+                    mimic_path,
+                    dst_path,
+                    stay_ids,
+                    feature_ids,
+                    timestep_seconds=timestep_seconds,
+                )
+            )
+
+        if procedureevents:
+            self.aggregators.append(
+                ProcedureEventAggregator(
                     mimic_path,
                     dst_path,
                     stay_ids,
