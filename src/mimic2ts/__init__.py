@@ -53,6 +53,7 @@ class BaseAggregator(object):
         feature_ids: List[int],
         timestep_seconds: int,
         name: str,
+        cpu_cores: int = None,
     ):
         self.stay_ids = stay_ids
         self.feature_ids = feature_ids
@@ -60,7 +61,11 @@ class BaseAggregator(object):
         self.dst_path = dst_path
         self.timestep_seconds = timestep_seconds
         self.name = name
-        self.cores_available = len(os.sched_getaffinity(0))
+
+        if cpu_cores:
+            self.cores_available = cpu_cores
+        else:
+            self.cores_available = len(os.sched_getaffinity(0))
 
         self.icustays = pd.read_csv(f"{self.mimic_path}/icu/icustays.csv")
         self.d_items = pd.read_csv(f"{self.mimic_path}/icu/d_items.csv")

@@ -23,7 +23,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     package_dir={"": "src"},
-    install_requires=["dask", "pandas", "numpy"],
+    install_requires=["dask", "pandas>=1.4.2", "numpy"],
     packages=setuptools.find_packages(where="src"),
     python_requires=">=3.6",
 )
