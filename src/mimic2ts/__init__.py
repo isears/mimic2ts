@@ -1,10 +1,12 @@
-import dask
-import dask.dataframe as dd
-from dask.diagnostics import ProgressBar
-import pandas as pd
-import numpy as np
 import os
 from typing import List
+
+import dask
+import dask.dataframe as dd
+import numpy as np
+import pandas as pd
+from dask.diagnostics import ProgressBar
+
 from mimic2ts.version import __version__
 
 all_inclusive_dtypes = {
@@ -54,6 +56,7 @@ class BaseAggregator(object):
         timestep_seconds: int,
         name: str,
         cpu_cores: int = None,
+        ffill: bool = False,
     ):
         self.stay_ids = stay_ids
         self.feature_ids = feature_ids
@@ -61,6 +64,7 @@ class BaseAggregator(object):
         self.dst_path = dst_path
         self.timestep_seconds = timestep_seconds
         self.name = name
+        self.ffill = ffill
 
         if cpu_cores:
             self.cores_available = cpu_cores
@@ -120,9 +124,16 @@ class BaseAggregator(object):
             tidx_grouped = tidx_grouped.reindex(
                 index=range(0, tidx_max + 1), method=None
             )
-            tidx_grouped["value"] = tidx_grouped["value"].fillna(
-                0.0
-            )  # fill in missing values w/0.0
+
+            if self.ffill:
+                # If doing forward filling, need to do the ffill AND fill w/0.0s
+                # anything that didn't have a value @ t0
+                tidx_grouped["value"] = tidx_grouped["value"].fillna(method="ffill")
+                tidx_grouped["value"] = tidx_grouped["value"].fillna(0.0)
+            else:
+                tidx_grouped["value"] = tidx_grouped["value"].fillna(
+                    0.0
+                )  # fill in missing values w/0.0
 
             return tidx_grouped["value"]
         except Exception as e:
@@ -163,6 +174,7 @@ class BaseAggregator(object):
             by_feature.to_csv(f"{self.dst_path}/{stay_id}/{self.name}_features.csv")
         except Exception as e:
             print(f"The stay id triggering the exception is {stay_id}")
+            print(e)
             raise e
 
     def _do_filter(self):
@@ -222,6 +234,7 @@ class ChartEventAggregator(BaseAggregator):
         feature_ids: List[int],
         timestep_seconds: int = 3600,
         blocksize=1e6,
+        ffill: bool = False,
     ):
 
         self.data = dd.read_csv(
@@ -232,10 +245,17 @@ class ChartEventAggregator(BaseAggregator):
         )
 
         super().__init__(
-            mimic_path, dst_path, stay_ids, feature_ids, timestep_seconds, "chartevents"
+            mimic_path,
+            dst_path,
+            stay_ids,
+            feature_ids,
+            timestep_seconds,
+            "chartevents",
+            ffill=ffill,
         )
 
     def _value_parser(self, row):
+        # TODO: "text"-type chartevents (possibly others) that have null valuenums
         return float(row["valuenum"])
 
     def _feature_combiner(self, tidx_group: pd.DataFrame):
@@ -251,6 +271,7 @@ class InputEventAggregator(BaseAggregator):
         feature_ids: List[int],
         timestep_seconds: int = 3600,
         blocksize=1e6,
+        ffill: bool = False,
     ):
 
         self.data = dd.read_csv(
@@ -261,7 +282,13 @@ class InputEventAggregator(BaseAggregator):
         )
 
         super().__init__(
-            mimic_path, dst_path, stay_ids, feature_ids, timestep_seconds, "inputevents"
+            mimic_path,
+            dst_path,
+            stay_ids,
+            feature_ids,
+            timestep_seconds,
+            "inputevents",
+            ffill=ffill,
         )
 
     def _value_parser(self, row):
@@ -323,6 +350,7 @@ class OutputEventAggregator(BaseAggregator):
         feature_ids: List[int],
         timestep_seconds: int = 3600,
         blocksize=1e6,
+        ffill: bool = False,
     ):
 
         self.data = dd.read_csv(
@@ -339,6 +367,7 @@ class OutputEventAggregator(BaseAggregator):
             feature_ids,
             timestep_seconds,
             "outputevents",
+            ffill=ffill,
         )
 
     def _value_parser(self, row):
@@ -357,6 +386,7 @@ class ProcedureEventAggregator(BaseAggregator):
         feature_ids: List[int],
         timestep_seconds: int = 3600,
         blocksize=1e6,
+        ffill: bool = False,
     ):
 
         self.data = dd.read_csv(
@@ -373,6 +403,7 @@ class ProcedureEventAggregator(BaseAggregator):
             feature_ids=feature_ids,
             timestep_seconds=timestep_seconds,
             name="procedureevents",
+            ffill=ffill,
         )
 
     def _value_parser(self, row):
@@ -436,6 +467,7 @@ class EventsAggregator(object):
         feature_ids: List[int],
         timestep_seconds: int = 3600,
         blocksize="default",
+        ffill: bool = False,
         chartevents: bool = True,
         inputevents: bool = True,
         outputevents: bool = True,
@@ -457,6 +489,7 @@ class EventsAggregator(object):
                     feature_ids,
                     timestep_seconds=timestep_seconds,
                     blocksize=blocksize,
+                    ffill=ffill,
                 )
             )
 
@@ -469,6 +502,7 @@ class EventsAggregator(object):
                     feature_ids,
                     timestep_seconds=timestep_seconds,
                     blocksize=blocksize,
+                    ffill=ffill,
                 )
             )
 
@@ -481,6 +515,7 @@ class EventsAggregator(object):
                     feature_ids,
                     timestep_seconds=timestep_seconds,
                     blocksize=blocksize,
+                    ffill=ffill,
                 )
             )
 
@@ -493,6 +528,7 @@ class EventsAggregator(object):
                     feature_ids,
                     timestep_seconds=timestep_seconds,
                     blocksize=blocksize,
+                    ffill=ffill,
                 )
             )
 

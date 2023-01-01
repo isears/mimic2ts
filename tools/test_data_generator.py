@@ -62,6 +62,11 @@ if __name__ == "__main__":
         31738657,
         30720284,
         35601991,
+        ## stay ids that broke when using smaller slices
+        30045697,
+        30100328,
+        30197364,
+        30110755,
         # Random sample stay ids
         30324975,
         32491957,

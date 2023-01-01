@@ -1,9 +1,8 @@
-from mimic2ts import EventsAggregator
 import argparse
 import datetime
 
 import mimic2ts
-
+from mimic2ts import EventsAggregator
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -41,6 +40,14 @@ if __name__ == "__main__":
         default="default",
     )
 
+    parser.add_argument(
+        "--ffill",
+        action="store_true",
+        required=False,
+        help="Specify to forward-fill missing values in the timeseries",
+    )
+    parser.set_defaults(ffill=False)
+
     args = parser.parse_args()
 
     excluded_sources = dict()
@@ -64,6 +71,7 @@ if __name__ == "__main__":
         feature_ids=None,
         timestep_seconds=args.timestep,
         blocksize=args.blocksize,
+        ffill=args.ffill,
         **excluded_sources,
     )
 

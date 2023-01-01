@@ -1,9 +1,11 @@
-import unittest
 import os
-import pandas as pd
 import shutil
+import unittest
 from datetime import datetime
+
 import numpy as np
+import pandas as pd
+
 from mimic2ts import EventsAggregator
 
 
